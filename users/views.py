@@ -18,18 +18,18 @@ def login_page(request):
         if user is not None:
             login(request, user)
             messages.success(request, 'Login successful!')
-            return redirect('/chat/kishan/')
+            return redirect('/chat/Ammar/')
         else:
             messages.error(request, 'Invalid email or password. Please try again.')
     if request.user.is_authenticated:
-        return redirect('/chat/kishan/')
+        return redirect('/chat/Ammar/')
     return render(request,'login.html')
 
 
 @login_required
 def logout_page(request):
-    logout(request)  
-    messages.success(request, 'You have been logged out successfully.') 
+    logout(request)
+    messages.success(request, 'You have been logged out successfully.')
     return redirect('/')
 
 
@@ -51,7 +51,7 @@ def signup_view(request):
             return render(request, 'signup.html')
 
         # Create the new user
-        user = User.objects.create_user(username=username, 
+        user = User.objects.create_user(username=username,
                                         email=email,
                                         password=password1
                                         )
@@ -59,7 +59,7 @@ def signup_view(request):
         messages.success(request, 'Signup successful! You can now log in.')
         return redirect('login')
     if request.user.is_authenticated:
-        return redirect('/chat/kishan/') #todo: pass usename
+        return redirect('/chat/Ammar/') #todo: pass usename
     return render(request, 'signup.html')
 
 
@@ -67,35 +67,35 @@ def signup_view(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-       redirect('/chat/kishan/')
-        
+       return redirect('/chat/Ammar/')
+
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
-        
+
         if user is not None:
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-            return redirect('/chat/kishan/')
+            return redirect('/chat/Ammar/')
         else:
             messages.error(request, 'Invalid username or password.')
-    
+
     return render(request, 'login.html')
 
 def register_view(request):
     if request.user.is_authenticated:
-        redirect('/chat/kishan/')
-        
+        return redirect('/chat/Ammar/')
+
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
         password1 = request.POST.get('password1')
         password2 = request.POST.get('password2')
-        
+
         if password1 != password2:
             messages.error(request, 'Passwords do not match.')
             return render(request, 'register.html')
-            
+
         try:
             user = User.objects.create_user(
                 username=username,
@@ -106,10 +106,10 @@ def register_view(request):
             )
             # تحديد الـ backend عند تسجيل الدخول
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-            return redirect('chat')
+            return redirect('/chat/Ammar/')
         except Exception as e:
             messages.error(request, str(e))
-    
+
     return render(request, 'register.html')
 
 

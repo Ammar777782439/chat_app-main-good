@@ -15,7 +15,7 @@ from django.db.models import Q
 from django.utils import timezone
 from datetime import datetime
 import pytz
-
+from rest_framework import serializers
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
@@ -55,7 +55,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         pagination_class: The pagination class used for paginating message lists.
     """
     serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
     pagination_class = MessagePagination
 
     def get_queryset(self):
@@ -101,13 +101,11 @@ class MessageViewSet(viewsets.ModelViewSet):
             ValidationError: If the specified receiver username doesn't exist.
         """
         receiver_username = self.request.data.get('receiver')
+    
         try:
-            # Find the receiver user by username
-            receiver = User.objects.get(username=receiver_username)
-            # Save the message with the current user as sender and found user as receiver
+            receiver = User.objects.get(id=receiver_username)
             serializer.save(sender=self.request.user, receiver=receiver)
         except User.DoesNotExist:
-            from rest_framework import serializers
             raise serializers.ValidationError("Receiver not found")
 
     @action(detail=True, methods=['delete'])
