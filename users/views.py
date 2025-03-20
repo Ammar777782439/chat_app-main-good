@@ -5,6 +5,10 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from social_django.utils import load_strategy, load_backend
 from social_core.exceptions import MissingBackend, AuthFailed
+from rest_framework.authtoken.models import Token
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 
 def home_view(request):
@@ -68,9 +72,12 @@ def register_view(request):
     return render(request, 'register.html')
 
 
-
-
-
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_auth_token(request):
+    """Get or create an authentication token for the current user."""
+    token, created = Token.objects.get_or_create(user=request.user)
+    return Response({'token': token.key})
 
 
 

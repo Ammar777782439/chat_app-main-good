@@ -102,7 +102,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         else:
             # Save new message to the database
             saved_message = await self.save_message(sender, receiver, message)
-
+            
+        #    نمط ال observers يقوم ب اخطار جميع المتصلين ب التغيرات من خلال داله 
             # Broadcast the new message to the room group
             await self.channel_layer.group_send(
                 self.room_group_name,

@@ -21,10 +21,13 @@ from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
+from rest_framework.permissions import IsAuthenticated
 
 from chat.serializers import MessageSerializer
 from .models import Message
 
+# نمط التصميم facory
 class MessagePagination(PageNumberPagination):
     """
     Custom pagination class for the Message API.
@@ -41,6 +44,8 @@ class MessagePagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 100
 
+
+# نمط التصميم repository
 class MessageViewSet(viewsets.ModelViewSet):
     """
     ViewSet for handling Message model CRUD operations through the API.
@@ -55,8 +60,9 @@ class MessageViewSet(viewsets.ModelViewSet):
         pagination_class: The pagination class used for paginating message lists.
     """
     serializer_class = MessageSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     pagination_class = MessagePagination
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
 
     def get_queryset(self):
         """
@@ -101,7 +107,7 @@ class MessageViewSet(viewsets.ModelViewSet):
             ValidationError: If the specified receiver username doesn't exist.
         """
         receiver_username = self.request.data.get('receiver')
-    
+
         try:
             receiver = User.objects.get(id=receiver_username)
             serializer.save(sender=self.request.user, receiver=receiver)

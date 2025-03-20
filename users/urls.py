@@ -1,7 +1,7 @@
 
 from django.urls import path
 from django.contrib.auth.views import LogoutView
-from users.views import  login_view, register_view, home_view
+from users.views import login_view, register_view, home_view, get_auth_token
 
 urlpatterns = [
     path('', home_view, name='home'),
@@ -12,7 +12,6 @@ urlpatterns = [
         template_name='login.html'
     ), name='logout'),
 
-    # path('', login_page, name="login"),
-    # path('logout/', logout_page, name="logout"),
-    # path('signup/', signup_view, name="signup"),
+    # API endpoints
+    path('api/token/', get_auth_token, name='get_auth_token'),
 ]

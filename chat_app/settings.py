@@ -43,7 +43,7 @@ ALLOWED_HOSTS = []
 
 
 # Application definition
- 
+
 INSTALLED_APPS = [
     'daphne',
     'channels',
@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'chat',
     'users',
     "rest_framework",
+    "rest_framework.authtoken",  # Add this for token authentication
     "corsheaders",
     "social_django",  # Google OAuth
 ]
@@ -68,13 +69,16 @@ INSTALLED_APPS += [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+        'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10
+    'PAGE_SIZE': 10,
+    'CSRF_COOKIE_SECURE': False,  # Set to True in production with HTTPS
+    'CSRF_USE_SESSIONS': False
 }
 
 # OAuth2 settings
