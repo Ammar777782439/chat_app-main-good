@@ -1,76 +1,74 @@
-from django.test import TestCase, Client
-from django.urls import reverse
-from django.contrib.auth.models import User
-from django.contrib.messages import get_messages
-from rest_framework.test import APIClient
-from rest_framework import status
+from django.test import TestCase, Client  # استيراد أدوات الاختبار حق Django
+from django.urls import reverse  # استيراد reverse علشان نجيب الروابط
+from django.contrib.auth.models import User  # استيراد نموذج المستخدم الأساسي
+from django.contrib.messages import get_messages  # استيراد الرسائل اللي بتظهر للمستخدم
+from rest_framework.test import APIClient  # استيراد APIClient لاختبار الـ API
+from rest_framework import status  # استيراد أكواد حالة الـ HTTP
 
 class UserViewsTest(TestCase):
     def setUp(self):
-        # Create test users
+        """هنا بجهز البيانات اللي بستخدمها في الاختبار"""
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
             password='testpassword'
         )
-
-        # Create client
-        self.client = Client()
+        self.client = Client()  # هذا الكلاينت بيحاكي المستخدم اللي بيزور الموقع
 
     def test_login_page_get(self):
-        """Test the login page loads correctly"""
+        """اختبار هل صفحة تسجيل الدخول تفتح عادي"""
         response = self.client.get('/login/')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'login.html')
+        self.assertEqual(response.status_code, 200)  # لازم الصفحة تفتح بدون مشاكل
+        self.assertTemplateUsed(response, 'login.html')  # يتأكد إنها تستخدم القالب الصح
 
     def test_login_page_post_valid(self):
-        """Test login with valid credentials"""
+        """اختبار تسجيل الدخول بمعلومات صحيحة"""
         response = self.client.post('/login/', {
             'username': 'testuser',
             'password': 'testpassword'
         })
-        self.assertEqual(response.status_code, 302)  # Redirect after login
-        self.assertRedirects(response, '/chat/Ammar/')
+        self.assertEqual(response.status_code, 302)  # المفروض يعيد التوجيه بعد تسجيل الدخول
+        self.assertRedirects(response, f'/chat/{self.user.username}/')  # لازم يروح لصفحة الشات
 
     def test_login_page_post_invalid(self):
-        """Test login with invalid credentials"""
+        """اختبار تسجيل الدخول بكلمة مرور غلط"""
         response = self.client.post('/login/', {
             'username': 'testuser',
             'password': 'wrongpassword'
         })
-        self.assertEqual(response.status_code, 200)  # Stay on login page
+        self.assertEqual(response.status_code, 200)  # بيبقى بنفس الصفحة
         messages = list(get_messages(response.wsgi_request))
-        self.assertGreater(len(messages), 0)
-        self.assertIn('Invalid', str(messages[0]))
+        self.assertGreater(len(messages), 0)  # لازم تظهر رسالة خطأ
+        self.assertIn('Invalid', str(messages[0]))  # نشوف الرسالة إذا فيها "Invalid"
 
     def test_login_page_authenticated_user(self):
-        """Test that authenticated users are redirected from login page"""
+        """إذا المستخدم مسجل دخوله، لازم ما يخليه يروح صفحة تسجيل الدخول"""
         self.client.login(username='testuser', password='testpassword')
         response = self.client.get('/login/')
-        self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, '/chat/Ammar/')
+        self.assertEqual(response.status_code, 302)  # لازم يرجعه من صفحة تسجيل الدخول
+        self.assertRedirects(response, f'/chat/{self.user.username}/')  
 
     def test_home_view_authenticated(self):
-        """Test home view with authenticated user"""
+        """اختبار الصفحة الرئيسية إذا كان المستخدم مسجل دخول"""
         self.client.login(username='testuser', password='testpassword')
         response = self.client.get('/')
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, '/chat/Ammar/')
+        self.assertRedirects(response, f'/chat/{self.user.username}/')  
 
     def test_home_view_unauthenticated(self):
-        """Test home view with unauthenticated user"""
+        """إذا المستخدم مش مسجل دخول، لازم يرجعه لصفحة تسجيل الدخول"""
         response = self.client.get('/')
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, '/login/')
+        self.assertRedirects(response, '/login/')  
 
     def test_signup_view_get(self):
-        """Test the signup page loads correctly"""
+        """اختبار هل صفحة التسجيل تفتح عادي"""
         response = self.client.get('/register/')
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'register.html')
 
     def test_signup_view_post_valid(self):
-        """Test signup with valid data"""
+        """اختبار التسجيل بمعلومات صحيحة"""
         response = self.client.post('/register/', {
             'username': 'newuser',
             'email': 'newuser@example.com',
@@ -79,62 +77,55 @@ class UserViewsTest(TestCase):
             'first_name': 'New',
             'last_name': 'User'
         })
-        self.assertEqual(response.status_code, 302)  # Redirect after signup
-        # Check user was created
-        self.assertTrue(User.objects.filter(username='newuser').exists())
+        self.assertEqual(response.status_code, 302)  # لازم يعيد التوجيه بعد التسجيل
+        self.assertTrue(User.objects.filter(username='newuser').exists())  # نشوف إذا المستخدم انضاف
 
     def test_signup_view_post_password_mismatch(self):
-        """Test signup with mismatched passwords"""
+        """اختبار لما يكون الباسوردات مش متطابقين"""
         response = self.client.post('/register/', {
             'username': 'newuser',
             'email': 'newuser@example.com',
             'password1': 'password123',
             'password2': 'differentpassword',
         })
-        self.assertEqual(response.status_code, 200)  # Stay on signup page
-        # Check user was not created
-        self.assertFalse(User.objects.filter(username='newuser').exists())
-        # Check error message
+        self.assertEqual(response.status_code, 200)  # المفروض يبقى في نفس الصفحة
+        self.assertFalse(User.objects.filter(username='newuser').exists())  # ما يضيف المستخدم
         messages = list(get_messages(response.wsgi_request))
         self.assertGreater(len(messages), 0)
-        self.assertIn('Passwords do not match', str(messages[0]))
+        self.assertIn('Passwords do not match', str(messages[0]))  # نشوف إذا الرسالة صح
 
     def test_signup_view_authenticated_user(self):
-        """Test that authenticated users are redirected from signup page"""
+        """المفروض المستخدم المسجل ما يخليه يروح صفحة التسجيل"""
         self.client.login(username='testuser', password='testpassword')
         response = self.client.get('/register/')
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, '/chat/Ammar/')
+        self.assertRedirects(response, f'/chat/{self.user.username}/')
 
     def test_signup_view_post_existing_username(self):
-        """Test signup with an existing username"""
+        """اختبار لما المستخدم يحاول يسجل بنفس الاسم اللي موجود"""
         response = self.client.post('/register/', {
-            'username': 'testuser',  # This username already exists
+            'username': 'testuser',  # الاسم هذا موجود أساسًا
             'email': 'another@example.com',
             'password1': 'password123',
             'password2': 'password123',
         })
-        self.assertEqual(response.status_code, 200)  # Stay on signup page
+        self.assertEqual(response.status_code, 200)  # المفروض يبقى في نفس الصفحة
         messages = list(get_messages(response.wsgi_request))
         self.assertGreater(len(messages), 0)
-        # The error message comes from the database constraint
-        self.assertIn('duplicate key value', str(messages[0]))
+        self.assertIn('duplicate key value', str(messages[0]))  # لازم تظهر رسالة الخطأ
 
     def test_logout_view(self):
-        """Test logout functionality"""
+        """اختبار تسجيل الخروج"""
         self.client.login(username='testuser', password='testpassword')
-        response = self.client.post('/logout/')  # Using POST instead of GET
-        self.assertEqual(response.status_code, 302)  # Redirect after logout
-        self.assertRedirects(response, '/login/')
-        # Check user is logged out
-        self.assertFalse('_auth_user_id' in self.client.session)
+        response = self.client.post('/logout/')  # تسجيل الخروج عبر POST
+        self.assertEqual(response.status_code, 302)  # المفروض يعيد التوجيه
+        self.assertRedirects(response, '/login/')  # لازم يوجهه لصفحة تسجيل الدخول
+        self.assertFalse('_auth_user_id' in self.client.session)  # تأكد إنه خرج
 
     def test_get_auth_token(self):
-        """Test getting authentication token"""
-        # Set up API client
-        api_client = APIClient()
-        api_client.force_authenticate(user=self.user)
-        
-        response = api_client.get('/api/token/')
+        """اختبار الحصول على التوكن حق المصادقة"""
+        api_client = APIClient()  # إنشاء عميل API
+        api_client.force_authenticate(user=self.user)  # مصادقة المستخدم يدويًا
+        response = api_client.get('/api/token/')  # طلب الحصول على التوكن
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('token', response.data)
+        self.assertIn('token', response.data)  # تأكد إنه أرسل التوكن

@@ -1,15 +1,17 @@
-from django.test import TestCase, Client
-from django.urls import reverse
-from django.contrib.auth.models import User
-from rest_framework.test import APITestCase, APIClient
-from rest_framework import status
-from chat.models import Message
-from chat.serializers import MessageSerializer
-from django.utils import timezone
+from django.test import TestCase, Client  # استيراد أدوات الاختبار العادية حق Django
+from django.urls import reverse  # استيراد reverse لاستخدام الروابط في الاختبار
+from django.contrib.auth.models import User  # استيراد نموذج المستخدم
+from rest_framework.test import APITestCase, APIClient  # استيراد أدوات الاختبار الخاصة بالـ API
+from rest_framework import status  # استيراد أكواد استجابة الـ HTTP
+from chat.models import Message  # استيراد نموذج الرسائل
+from chat.serializers import MessageSerializer  # استيراد السيريلايزر حق الرسائل
+from django.utils import timezone  # استيراد timezone لاستخدام الوقت والتواريخ
 
 class MessageViewSetTest(APITestCase):
     def setUp(self):
-        # Create test users
+        """إعداد البيانات اللي بنستخدمها في الاختبارات"""
+        
+        # إنشاء مستخدمين للتجربة
         self.user1 = User.objects.create_user(
             username='user1',
             password='testpass123'
@@ -19,7 +21,7 @@ class MessageViewSetTest(APITestCase):
             password='testpass123'
         )
         
-        # Create test messages
+        # إنشاء رسالتين اختبار
         self.message1 = Message.objects.create(
             sender=self.user1,
             receiver=self.user2,
@@ -31,60 +33,62 @@ class MessageViewSetTest(APITestCase):
             content='Hi user1'
         )
         
-        # Set up API client
+        # تجهيز API Client وتسجيل دخول user1
         self.client = APIClient()
         self.client.force_authenticate(user=self.user1)
 
     def test_get_messages(self):
-        """Test retrieving messages"""
+        """اختبار جلب جميع الرسائل"""
         response = self.client.get('/api/messages/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 2)
+        self.assertEqual(len(response.data['results']), 2)  # لازم يكون فيه رسالتين
 
     def test_get_filtered_messages(self):
-        """Test retrieving messages filtered by user"""
+        """اختبار جلب الرسائل المرسلة أو المستقبلة من مستخدم معين"""
         response = self.client.get(f'/api/messages/?user={self.user2.username}')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 2)
+        self.assertEqual(len(response.data['results']), 2)  # لازم يجيب كل الرسائل بينهم
 
     def test_create_message(self):
-        """Test creating a new message"""
+        """اختبار إرسال رسالة جديدة"""
         data = {
             'receiver': self.user2.id,
             'content': 'New test message'
         }
         response = self.client.post('/api/messages/', data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Message.objects.count(), 3)
+        self.assertEqual(Message.objects.count(), 3)  # لازم يصير عدد الرسائل 3
 
     def test_delete_message(self):
-        """Test deleting own message"""
+        """اختبار حذف رسالة خاصة بالمستخدم"""
         response = self.client.delete(f'/api/messages/{self.message1.id}/delete_message/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(Message.objects.count(), 1)
+        self.assertEqual(Message.objects.count(), 1)  # لازم يتبقى رسالة واحدة فقط
 
     def test_delete_others_message(self):
-        """Test attempting to delete another user's message"""
+        """اختبار محاولة حذف رسالة لشخص ثاني (المفروض يرفض)"""
         response = self.client.delete(f'/api/messages/{self.message2.id}/delete_message/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)  # ما يسمح له بالحذف
 
     def test_update_message(self):
-        """Test updating own message"""
+        """اختبار تعديل رسالة خاصة بالمستخدم"""
         data = {'content': 'Updated content'}
         response = self.client.post(f'/api/messages/{self.message1.id}/update_message/', data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.message1.refresh_from_db()
-        self.assertEqual(self.message1.content, 'Updated content')
+        self.message1.refresh_from_db()  # تحديث البيانات بعد التعديل
+        self.assertEqual(self.message1.content, 'Updated content')  # لازم المحتوى يتغير
 
     def test_update_others_message(self):
-        """Test attempting to update another user's message"""
+        """اختبار محاولة تعديل رسالة شخص ثاني (المفروض يرفض)"""
         data = {'content': 'Updated content'}
         response = self.client.post(f'/api/messages/{self.message2.id}/update_message/', data)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)  # ما يسمح له بالتعديل
 
 class ChatRoomViewTest(TestCase):
     def setUp(self):
-        # Create test users
+        """إعداد بيانات الاختبار الخاصة بغرف الدردشة"""
+        
+        # إنشاء مستخدمين للتجربة
         self.user1 = User.objects.create_user(
             username='user1',
             password='testpass123'
@@ -94,31 +98,31 @@ class ChatRoomViewTest(TestCase):
             password='testpass123'
         )
         
-        # Create test messages
+        # إنشاء رسالة اختبارية بينهم
         self.message1 = Message.objects.create(
             sender=self.user1,
             receiver=self.user2,
             content='Hello user2'
         )
         
-        # Set up client
+        # تجهيز Client وتسجيل دخول user1
         self.client = Client()
         self.client.login(username='user1', password='testpass123')
 
     def test_chat_room_view(self):
-        """Test chat room view with authentication"""
+        """اختبار صفحة الدردشة عند تسجيل الدخول"""
         response = self.client.get(f'/chat/{self.user2.username}/')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'chat.html')
+        self.assertEqual(response.status_code, 200)  # الصفحة لازم تفتح عادي
+        self.assertTemplateUsed(response, 'chat.html')  # يتأكد إنه استخدم القالب الصح
 
     def test_chat_room_view_unauthenticated(self):
-        """Test chat room view without authentication"""
-        self.client.logout()
+        """اختبار محاولة دخول صفحة الدردشة بدون تسجيل دخول"""
+        self.client.logout()  # تسجيل خروج
         response = self.client.get(f'/chat/{self.user2.username}/')
-        self.assertEqual(response.status_code, 302)  # Redirects to login
+        self.assertEqual(response.status_code, 302)  # لازم يعيد التوجيه لصفحة تسجيل الدخول
 
     def test_chat_room_search(self):
-        """Test chat room search functionality"""
+        """اختبار البحث عن رسالة داخل صفحة الدردشة"""
         response = self.client.get(f'/chat/{self.user2.username}/?search=Hello')
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'chat.html')
+        self.assertEqual(response.status_code, 200)  # الصفحة تفتح بدون مشاكل
+        self.assertTemplateUsed(response, 'chat.html')  # يتأكد إنه استخدم القالب الصح

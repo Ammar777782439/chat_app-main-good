@@ -183,7 +183,7 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '58335703471-l58a73o7u3f8kst6osh39g412q71khei.ap
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
 
 # Add these settings
-SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/chat/Ammar/'  # or wherever you want to redirect after login
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/'  # Redirect to home view which will handle finding a valid chat
 SOCIAL_AUTH_LOGIN_ERROR_URL = '/login/'
 
 AUTHENTICATION_BACKENDS = (

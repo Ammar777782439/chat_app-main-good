@@ -14,7 +14,13 @@ from rest_framework.response import Response
 def home_view(request):
     """View for the home page that redirects to login if not authenticated."""
     if request.user.is_authenticated:
-        return redirect('/chat/Ammar/')
+        # Get a valid user to chat with or redirect to the first available user
+        other_users = User.objects.exclude(id=request.user.id)
+        if other_users.exists():
+            return redirect(f'/chat/{other_users.first().username}/')
+        else:
+            # If no other users, redirect to their own chat (for UI display)
+            return redirect(f'/chat/{request.user.username}/')
     else:
         return redirect('login')
 
@@ -26,7 +32,12 @@ def home_view(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-       return redirect('/chat/Ammar/')
+        # Reuse the same redirection logic as home_view
+        other_users = User.objects.exclude(id=request.user.id)
+        if other_users.exists():
+            return redirect(f'/chat/{other_users.first().username}/')
+        else:
+            return redirect(f'/chat/{request.user.username}/')
 
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -35,7 +46,12 @@ def login_view(request):
 
         if user is not None:
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-            return redirect('/chat/Ammar/')
+            # Redirect to chat with another user or self
+            other_users = User.objects.exclude(id=user.id)
+            if other_users.exists():
+                return redirect(f'/chat/{other_users.first().username}/')
+            else:
+                return redirect(f'/chat/{user.username}/')
         else:
             messages.error(request, 'Invalid username or password.')
 
@@ -43,7 +59,12 @@ def login_view(request):
 
 def register_view(request):
     if request.user.is_authenticated:
-        return redirect('/chat/Ammar/')
+        # Reuse the same redirection logic
+        other_users = User.objects.exclude(id=request.user.id)
+        if other_users.exists():
+            return redirect(f'/chat/{other_users.first().username}/')
+        else:
+            return redirect(f'/chat/{request.user.username}/')
 
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -65,7 +86,12 @@ def register_view(request):
             )
             # تحديد الـ backend عند تسجيل الدخول
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-            return redirect('/chat/Ammar/')
+            # Redirect to chat with another user or self
+            other_users = User.objects.exclude(id=user.id)
+            if other_users.exists():
+                return redirect(f'/chat/{other_users.first().username}/')
+            else:
+                return redirect(f'/chat/{user.username}/')
         except Exception as e:
             messages.error(request, str(e))
 
