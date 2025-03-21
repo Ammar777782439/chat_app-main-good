@@ -700,6 +700,40 @@
       chatSocket.onmessage = function (e) {
         const data = JSON.parse(e.data);
 
+        // Handle message deletion notification
+        if (data.deleted_message_id) {
+          console.log('Received WebSocket notification for deleted message ID:', data.deleted_message_id);
+          const messageElement = document.getElementById(`message-${data.deleted_message_id}`);
+          if (messageElement) {
+            // Remove the message with animation
+            messageElement.style.height = messageElement.offsetHeight + 'px';
+            messageElement.style.transition = 'all 0.3s ease';
+            setTimeout(() => {
+              messageElement.style.height = '0';
+              messageElement.style.padding = '0';
+              messageElement.style.margin = '0';
+              messageElement.style.overflow = 'hidden';
+            }, 10);
+            setTimeout(() => {
+              messageElement.remove();
+            }, 300);
+
+            // Show notification that message was deleted
+            const chatbox = document.querySelector("#chatbox");
+            const div = document.createElement("div");
+            div.className = "alert alert-info text-center";
+            div.innerHTML = "<i class='fas fa-info-circle mr-2'></i>A message was deleted";
+            chatbox.appendChild(div);
+
+            // Remove the notification after 3 seconds
+            setTimeout(() => {
+              div.remove();
+            }, 3000);
+          }
+          return;
+        }
+
+        // Handle regular messages (new or updated)
         if (data.message && data.sender) {
           // Display the new message in the chatbox
           const chatbox = document.querySelector("#chatbox");
@@ -732,6 +766,9 @@
           } else {
             // This is a new message
             div.innerHTML = `<div><span>${data.message}</span></div>`;
+            div.id = `message-${data.id}`;
+            div.dataset.id = data.id;
+            div.dataset.content = data.message;
             chatbox.appendChild(div);
 
             // Add message actions if the message is from the current user
@@ -762,7 +799,7 @@
                 ? "You: " + data.message
                 : data.message;
 
-            // update tyime4stamp in format of UTC time 12:00, 13:00 etc
+            // update timestamp in format of UTC time 12:00, 13:00 etc
             const timestamp = document.querySelector(
               ".list-group-item.active small"
             );
@@ -915,63 +952,78 @@
             messageElement.innerHTML += '<div class="text-center"><i class="fas fa-spinner fa-spin"></i></div>';
           }
 
-          // Get CSRF token
-          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+          try {
+            // First delete via WebSocket for real-time update
+            chatSocket.send(
+              JSON.stringify({
+                delete_message_id: messageId,
+                username: "{{ request.user.username }}",
+                room_name: "{{ room_name }}"
+              })
+            );
+            console.log('Sent WebSocket delete request for message ID:', messageId);
 
-          fetch(`/api/messages/${messageId}/delete_message/`, {
-            method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": csrfToken,
-            },
-          })
-            .then((response) => {
-              console.log('Delete API response status:', response.status);
-              if (response.status === 204) {
-                // Remove the message from UI with animation
-                if (messageElement) {
-                  messageElement.style.height = messageElement.offsetHeight + 'px';
-                  messageElement.style.transition = 'all 0.3s ease';
-                  setTimeout(() => {
-                    messageElement.style.height = '0';
-                    messageElement.style.padding = '0';
-                    messageElement.style.margin = '0';
-                    messageElement.style.overflow = 'hidden';
-                  }, 10);
-                  setTimeout(() => {
-                    messageElement.remove();
-                  }, 300);
-                }
+            // Get CSRF token
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+            console.log('CSRF Token obtained:', csrfToken ? 'Yes' : 'No');
 
-                // Show success message
-                const chatbox = document.querySelector("#chatbox");
-                const div = document.createElement("div");
-                div.className = "alert alert-success text-center";
-                div.innerHTML = "<i class='fas fa-check-circle mr-2'></i>Message deleted successfully!";
-                chatbox.appendChild(div);
-
-                // Remove the success message after 3 seconds
-                setTimeout(() => {
-                  div.remove();
-                }, 3000);
-              } else {
-                // Reset message element if deletion failed
-                if (messageElement) {
-                  messageElement.style.opacity = '1';
-                  messageElement.querySelector('.text-center')?.remove();
-                }
-                alert("Failed to delete the message.");
-              }
+            // Also delete via REST API as a backup
+            fetch(`/api/messages/${messageId}/delete_message/`, {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+              },
             })
-            .catch((error) => {
-              console.error("Error deleting message:", error);
-              // Reset message element if deletion failed
-              if (messageElement) {
-                messageElement.style.opacity = '1';
-                messageElement.querySelector('.text-center')?.remove();
-              }
-              alert("An error occurred while deleting the message. Please try again.");
-            });
+              .then((response) => {
+                console.log('Delete API response status:', response.status);
+                if (response.status === 204) {
+                  console.log('Message successfully deleted via API');
+                } else {
+                  console.warn('API deletion failed, but WebSocket deletion may have succeeded');
+                }
+              })
+              .catch((error) => {
+                console.error("Error in API deletion:", error);
+                // WebSocket deletion might still have succeeded
+              });
+
+            // Remove the message from UI with animation
+            if (messageElement) {
+              messageElement.style.height = messageElement.offsetHeight + 'px';
+              messageElement.style.transition = 'all 0.3s ease';
+              setTimeout(() => {
+                messageElement.style.height = '0';
+                messageElement.style.padding = '0';
+                messageElement.style.margin = '0';
+                messageElement.style.overflow = 'hidden';
+              }, 10);
+              setTimeout(() => {
+                messageElement.remove();
+              }, 300);
+            }
+
+            // Show success message
+            const chatbox = document.querySelector("#chatbox");
+            const div = document.createElement("div");
+            div.className = "alert alert-success text-center";
+            div.innerHTML = "<i class='fas fa-check-circle mr-2'></i>Message deleted successfully!";
+            chatbox.appendChild(div);
+
+            // Remove the success message after 3 seconds
+            setTimeout(() => {
+              div.remove();
+            }, 3000);
+
+          } catch (error) {
+            console.error("Error deleting message:", error);
+            // Reset message element if deletion failed
+            if (messageElement) {
+              messageElement.style.opacity = '1';
+              messageElement.querySelector('.text-center')?.remove();
+            }
+            alert("An error occurred while deleting the message. Please try again.");
+          }
         }
       }
 

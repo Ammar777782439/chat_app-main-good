@@ -69,21 +69,43 @@ class ChatConsumer(AsyncWebsocketConsumer):
         Handle receiving messages from WebSocket.
 
         This method is called when a message is received from the WebSocket. It processes
-        the message data, determines if it's a new message or an update to an existing one,
-        saves or updates the message in the database, and broadcasts it to all users in the room.
+        the message data, determines if it's a new message, an update to an existing one,
+        or a message deletion request. It performs the appropriate database operation and
+        broadcasts the action to all users in the room.
 
         Args:
             text_data: The JSON string containing the message data.
         """
         # تحليل البيانات المستلمة
         text_data_json = json.loads(text_data)
-        message = text_data_json['message']
         sender = self.scope['user']
         receiver = await self.get_receiver_user()
 
-        # التحقق هل هي رسالة جديدة أو تحديث لرسالة موجودة
+        # التحقق من نوع العملية (إرسال، تحديث، أو حذف)
         message_id = text_data_json.get('message_id', None)
+        delete_message_id = text_data_json.get('delete_message_id', None)
 
+        # حالة حذف رسالة
+        if delete_message_id:
+            # حذف الرسالة
+            deleted = await self.delete_message(delete_message_id, sender)
+            if deleted:
+                # إرسال إشعار الحذف إلى جميع المشتركين في الغرفة
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'chat_message',
+                        'sender': sender.username,
+                        'receiver': receiver.username,
+                        'deleted_message_id': delete_message_id
+                    }
+                )
+            return
+
+        # الحصول على محتوى الرسالة للإرسال أو التحديث
+        message = text_data_json['message']
+
+        # حالة تحديث رسالة موجودة
         if message_id:
             # تحديث الرسالة
             updated = await self.update_message(message_id, sender, message)
@@ -99,6 +121,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'message_id': message_id
                     }
                 )
+        # حالة إرسال رسالة جديدة
         else:
             # حفظ الرسالة الجديدة في قاعدة البيانات
             saved_message = await self.save_message(sender, receiver, message)
@@ -120,12 +143,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         Handle chat messages sent to the room group.
 
         This method is called when a message is received from the room group.
-        It sends the message to the WebSocket for the client to receive.
+        It sends the message to the WebSocket for the client to receive. It handles
+        different types of events including new messages, message updates, and message deletions.
 
         Args:
             event: The event data containing the message information.
         """
-        message = event['message']
         sender = event['sender']
         receiver = event['receiver']
 
@@ -133,14 +156,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
         response_data = {
             'sender': sender,
             'receiver': receiver,
-            'message': message
         }
 
-        if 'message_id' in event:
-            response_data['message_id'] = event['message_id']
+        # التعامل مع حالة حذف رسالة
+        if 'deleted_message_id' in event:
+            response_data['deleted_message_id'] = event['deleted_message_id']
+        # التعامل مع حالة إرسال أو تحديث رسالة
+        else:
+            message = event['message']
+            response_data['message'] = message
 
-        if 'id' in event:
-            response_data['id'] = event['id']
+            if 'message_id' in event:
+                response_data['message_id'] = event['message_id']
+
+            if 'id' in event:
+                response_data['id'] = event['id']
 
         # إرسال البيانات عبر WebSocket
         await self.send(text_data=json.dumps(response_data))
@@ -162,6 +192,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message = Message.objects.get(id=message_id, sender=sender)
             message.content = new_content
             message.save()
+            return True
+        except Message.DoesNotExist:
+            return False
+    @sync_to_async
+    def delete_message(self, message_id, sender):
+        """
+        delete an existing message in the database.
+        """
+        try:
+            # البحث عن الرسالة والتأكد من ملكية المرسل لها
+            message = Message.objects.get(id=message_id, sender=sender)
+
+            message.delete()
             return True
         except Message.DoesNotExist:
             return False
