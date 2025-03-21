@@ -32,6 +32,7 @@ class Message(models.Model):
         auto_now_add=True,
         help_text="The date and time when the message was sent"
     )
+    deleted_at = models.DateTimeField(null=True, blank=True, help_text="The date and time when the message was deleted")
 
     class Meta:
         """
@@ -44,7 +45,7 @@ class Message(models.Model):
             models.Index(fields=['sender', 'receiver']),  # Index for faster queries
             models.Index(fields=['timestamp']),  # Index for timestamp-based sorting
         ]
-
+     
     def __str__(self):
         """
         String representation of the Message object.

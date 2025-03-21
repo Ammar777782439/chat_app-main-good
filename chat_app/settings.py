@@ -129,7 +129,7 @@ CHANNEL_LAYERS = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'chatAppM',
+        'NAME': 'chatApp',
         'USER': 'postgres',
         'PASSWORD': 'root',
         'HOST': 'localhost',
