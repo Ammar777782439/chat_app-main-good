@@ -23,7 +23,7 @@
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'chatAppMin',  # اسم قاعدة البيانات
+        'NAME': 'chatApp',  # اسم قاعدة البيانات
         'USER': 'postgres',    # اسم المستخدم
         'PASSWORD': 'your_password',  # كلمة المرور
         'HOST': 'localhost',   # المضيف
