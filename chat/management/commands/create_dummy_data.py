@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from chat.models import Message
 from faker import Faker
+from rest_framework.authtoken.models import Token
 
 class Command(BaseCommand):
     help = 'Creates dummy users and messages for testing'
@@ -18,20 +19,20 @@ class Command(BaseCommand):
         num_users = options['users']
         num_messages = options['messages']
         clear_data = options['clear']
-        
+
         fake = Faker()
-        
+
         if clear_data:
             self.stdout.write(self.style.WARNING('Clearing existing data...'))
             # Only delete non-superuser accounts
             User.objects.filter(is_superuser=False).delete()
             Message.objects.all().delete()
             self.stdout.write(self.style.SUCCESS('Existing data cleared!'))
-        
+
         # Create users
         self.stdout.write(self.style.NOTICE(f'Creating {num_users} dummy users...'))
         users = []
-        
+
         # Check if admin user exists, if not create one
         if not User.objects.filter(username='admin').exists():
             admin = User.objects.create_superuser(
@@ -39,18 +40,27 @@ class Command(BaseCommand):
                 email='admin@example.com',
                 password='admin123'
             )
+            # Create token for admin user
+            token, created = Token.objects.get_or_create(user=admin)
             users.append(admin)
             self.stdout.write(self.style.SUCCESS(f'Created admin user: admin / admin123'))
+            self.stdout.write(self.style.SUCCESS(f'Created token for admin: {token.key}'))
         else:
             admin = User.objects.get(username='admin')
+            # Create or get token for existing admin
+            token, created = Token.objects.get_or_create(user=admin)
             users.append(admin)
-        
+            if created:
+                self.stdout.write(self.style.SUCCESS(f'Created token for admin: {token.key}'))
+            else:
+                self.stdout.write(self.style.SUCCESS(f'Using existing token for admin: {token.key}'))
+
         # Create regular users
         for i in range(num_users):
             first_name = fake.first_name()
             last_name = fake.last_name()
             username = f"{first_name.lower()}{i}"
-            
+
             if not User.objects.filter(username=username).exists():
                 user = User.objects.create_user(
                     username=username,
@@ -59,30 +69,33 @@ class Command(BaseCommand):
                     first_name=first_name,
                     last_name=last_name
                 )
+                # Create token for user
+                token, created = Token.objects.get_or_create(user=user)
                 users.append(user)
                 self.stdout.write(self.style.SUCCESS(f'Created user: {username} / password123'))
-        
+                self.stdout.write(self.style.SUCCESS(f'Created token for {username}: {token.key}'))
+
         # Create messages
         self.stdout.write(self.style.NOTICE(f'Creating {num_messages} dummy messages...'))
-        
+
         # Get all users if we need more than the ones we just created
         if len(users) < 2:
             users = list(User.objects.all())
-        
+
         now = timezone.now()
-        
+
         for i in range(num_messages):
             # Select random sender and receiver
             sender = random.choice(users)
             # Make sure sender and receiver are different
             receiver = random.choice([u for u in users if u != sender])
-            
+
             # Create a random timestamp within the last 30 days
             random_days = random.randint(0, 30)
             random_hours = random.randint(0, 23)
             random_minutes = random.randint(0, 59)
             timestamp = now - timedelta(days=random_days, hours=random_hours, minutes=random_minutes)
-            
+
             # Generate message content
             if random.random() < 0.2:  # 20% chance for a question
                 content = fake.sentence(nb_words=random.randint(5, 15)) + "?"
@@ -90,7 +103,7 @@ class Command(BaseCommand):
                 content = fake.paragraph(nb_sentences=random.randint(2, 5))
             else:  # 70% chance for a regular message
                 content = fake.sentence(nb_words=random.randint(3, 12))
-            
+
             # Create the message
             message = Message.objects.create(
                 sender=sender,
@@ -98,11 +111,13 @@ class Command(BaseCommand):
                 content=content,
                 timestamp=timestamp
             )
-            
+
             if (i + 1) % 50 == 0 or i + 1 == num_messages:
                 self.stdout.write(self.style.SUCCESS(f'Created {i + 1} messages'))
-        
+
         self.stdout.write(self.style.SUCCESS('Dummy data creation completed!'))
         self.stdout.write(self.style.NOTICE('You can login with any of these accounts:'))
         self.stdout.write(self.style.NOTICE('Admin: admin / admin123'))
         self.stdout.write(self.style.NOTICE('Users: [username] / password123'))
+        self.stdout.write(self.style.NOTICE('Authentication tokens have been created for all users'))
+        self.stdout.write(self.style.NOTICE('You can view your token at: http://127.0.0.1:8000/api/token/ after login'))
