@@ -65,14 +65,14 @@ class Command(BaseCommand):
                 user = User.objects.create_user(
                     username=username,
                     email=f"{username}@example.com",
-                    password="password123",
+                    password="123",
                     first_name=first_name,
                     last_name=last_name
                 )
                 # Create token for user
                 token, created = Token.objects.get_or_create(user=user)
                 users.append(user)
-                self.stdout.write(self.style.SUCCESS(f'Created user: {username} / password123'))
+                self.stdout.write(self.style.SUCCESS(f'Created user: {username} / 123'))
                 self.stdout.write(self.style.SUCCESS(f'Created token for {username}: {token.key}'))
 
         # Create messages
