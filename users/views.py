@@ -9,6 +9,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 def home_view(request):
@@ -106,4 +107,15 @@ def get_auth_token(request):
     return Response({'token': token.key})
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_auth_jwt(request):
+    """Generate JWT token for the authenticated user."""
+    user = request.user
+    refresh = RefreshToken.for_user(user)
+
+    return Response({
+        'access_token': str(refresh.access_token),
+        'refresh_token': str(refresh)
+    })
 

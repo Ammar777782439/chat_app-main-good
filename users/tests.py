@@ -46,20 +46,20 @@ class UserViewsTest(TestCase):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.get('/login/')
         self.assertEqual(response.status_code, 302)  # لازم يرجعه من صفحة تسجيل الدخول
-        self.assertRedirects(response, f'/chat/{self.user.username}/')  
+        self.assertRedirects(response, f'/chat/{self.user.username}/')
 
     def test_home_view_authenticated(self):
         """اختبار الصفحة الرئيسية إذا كان المستخدم مسجل دخول"""
         self.client.login(username='testuser', password='testpassword')
         response = self.client.get('/')
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, f'/chat/{self.user.username}/')  
+        self.assertRedirects(response, f'/chat/{self.user.username}/')
 
     def test_home_view_unauthenticated(self):
         """إذا المستخدم مش مسجل دخول، لازم يرجعه لصفحة تسجيل الدخول"""
         response = self.client.get('/')
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, '/login/')  
+        self.assertRedirects(response, '/login/')
 
     def test_signup_view_get(self):
         """اختبار هل صفحة التسجيل تفتح عادي"""
@@ -129,3 +129,12 @@ class UserViewsTest(TestCase):
         response = api_client.get('/api/token/')  # طلب الحصول على التوكن
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('token', response.data)  # تأكد إنه أرسل التوكن
+
+    def test_get_auth_jwt(self):
+        """اختبار الحصول على توكن JWT"""
+        api_client = APIClient()  # إنشاء عميل API
+        api_client.force_authenticate(user=self.user)  # مصادقة المستخدم يدويًا
+        response = api_client.get('/api/auth/jwt/')  # طلب الحصول على توكن JWT
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access_token', response.data)  # تأكد إنه أرسل توكن الوصول
+        self.assertIn('refresh_token', response.data)  # تأكد إنه أرسل توكن التحديث
