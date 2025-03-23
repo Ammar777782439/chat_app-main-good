@@ -13,6 +13,8 @@ POST /api/auth/login/
 ```
 
 مثال للبيانات المرسلة:
+
+**للمستخدمين العاديين**:
 ```json
 {
   "username": "your_username",
@@ -20,19 +22,25 @@ POST /api/auth/login/
 }
 ```
 
-أو باستخدام البريد الإلكتروني:
+**لمستخدمي Google OAuth**:
 ```json
 {
-  "username": "your_email@example.com",
-  "password": "your_password"
+  "username": "your_username",
+  "password": "",
+  "oauth": "true"
 }
 ```
 
-**ملاحظة هامة**: إذا كنت قد سجلت الدخول باستخدام Google OAuth، يمكنك استخدام اسم المستخدم الخاص بك مع أي كلمة مرور (لن يتم التحقق من كلمة المرور لمستخدمي Google).
+يمكنك أيضًا استخدام البريد الإلكتروني بدلاً من اسم المستخدم في كلتا الحالتين.
 
-مثال باستخدام curl:
+مثال باستخدام curl للمستخدمين العاديين:
 ```bash
 curl -X POST -H "Content-Type: application/json" -d '{"username":"your_username","password":"your_password"}' http://127.0.0.1:8000/api/auth/login/
+```
+
+مثال باستخدام curl لمستخدمي Google OAuth:
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"username":"your_username","password":"","oauth":"true"}' http://127.0.0.1:8000/api/auth/login/
 ```
 
 الاستجابة في حالة النجاح:

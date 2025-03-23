@@ -114,6 +114,7 @@ def obtain_auth_token(request):
     """API endpoint that accepts username/email and password and returns an auth token."""
     username = request.data.get('username')
     password = request.data.get('password')
+    is_oauth = request.data.get('oauth') == 'true'
 
     # Check if username is actually an email
     if '@' in username:
@@ -129,25 +130,24 @@ def obtain_auth_token(request):
     except User.DoesNotExist:
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    # First try standard authentication
-    authenticated_user = authenticate(username=username, password=password)
-
-    if authenticated_user:
-        # Standard authentication succeeded
-        token, created = Token.objects.get_or_create(user=authenticated_user)
-        return Response({'token': token.key}, status=status.HTTP_200_OK)
-    else:
-        # Check if this is a social auth user (Google OAuth)
+    # If OAuth flag is set, check if user has a Google OAuth account
+    if is_oauth:
         try:
-            # Check if user has a social auth account
             social_auth = UserSocialAuth.objects.get(user=user)
             if social_auth.provider == 'google-oauth2':
                 # This is a Google OAuth user, create a token
                 token, created = Token.objects.get_or_create(user=user)
                 return Response({'token': token.key}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'User is not authenticated with Google'}, status=status.HTTP_401_UNAUTHORIZED)
         except UserSocialAuth.DoesNotExist:
-            # Not a social auth user
-            pass
+            return Response({'error': 'User is not authenticated with Google'}, status=status.HTTP_401_UNAUTHORIZED)
+    else:
+        # Standard authentication
+        authenticated_user = authenticate(username=username, password=password)
 
-        # If we get here, authentication failed
-        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        if authenticated_user:
+            token, created = Token.objects.get_or_create(user=authenticated_user)
+            return Response({'token': token.key}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)

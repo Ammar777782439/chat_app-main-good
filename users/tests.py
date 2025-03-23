@@ -190,11 +190,31 @@ class UserViewsTest(TestCase):
             uid='123456789'
         )
 
-        # اختبار مستخدم جوجل مع كلمة مرور عشوائية
+        # اختبار مستخدم جوجل مع علامة OAuth
         response = api_client.post('/api/auth/login/', {
             'username': 'oauth_user',
-            'password': 'any_password_will_work'
+            'password': '',  # لا تحتاج لكلمة مرور
+            'oauth': 'true'
         }, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('token', response.data)
+
+        # اختبار مستخدم جوجل بدون علامة OAuth
+        response = api_client.post('/api/auth/login/', {
+            'username': 'oauth_user',
+            'password': 'randompassword'
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('error', response.data)
+
+        # اختبار مستخدم عادي مع علامة OAuth
+        response = api_client.post('/api/auth/login/', {
+            'username': 'testuser',
+            'password': '',
+            'oauth': 'true'
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('error', response.data)
