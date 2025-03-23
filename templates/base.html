@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     {% block extra_css %}{% endblock %}
+    {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-gray-100 min-h-screen">
     <nav class="bg-white shadow-lg">
@@ -20,9 +21,9 @@
                 <div class="flex items-center space-x-4">
                     {% if user.is_authenticated %}
                         <span class="text-gray-600">Welcome, {{ user.username }}</span>
-                        <a href="{% url 'logout' %}" 
+                        <a href="{% url 'logout' %}"
                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
-                           onclick="event.preventDefault(); 
+                           onclick="event.preventDefault();
                                     document.getElementById('logout-form').submit();">
                             Logout
                         </a>
@@ -48,7 +49,7 @@
                 </div>
             {% endfor %}
         {% endif %}
-        
+
         {% block content %}{% endblock %}
     </main>
 

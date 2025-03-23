@@ -18,7 +18,49 @@ http://127.0.0.1:8000/
 
 JWT (JSON Web Tokens) هي الطريقة المفضلة للمصادقة، خاصة عند استخدام Google OAuth.
 
-#### الحصول على توكن JWT
+#### الحصول على توكن JWT باستخدام اسم المستخدم وكلمة المرور
+
+```
+POST /api/auth/login/
+```
+
+**البيانات المطلوبة**:
+```json
+{
+    "username": "اسم_المستخدم",
+    "password": "كلمة_المرور"
+}
+```
+
+**الاستجابة**:
+```json
+{
+    "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+#### تجديد توكن JWT
+
+```
+POST /api/auth/refresh/
+```
+
+**البيانات المطلوبة**:
+```json
+{
+    "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**الاستجابة**:
+```json
+{
+    "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+#### الحصول على توكن JWT بعد تسجيل الدخول
 
 ```
 GET /api/auth/jwt/
