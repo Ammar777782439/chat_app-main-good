@@ -7,8 +7,10 @@ from social_django.utils import load_strategy, load_backend
 from social_core.exceptions import MissingBackend, AuthFailed
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework import status
+from social_django.models import UserSocialAuth
 
 
 def home_view(request):
@@ -106,4 +108,46 @@ def get_auth_token(request):
     return Response({'token': token.key})
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def obtain_auth_token(request):
+    """API endpoint that accepts username/email and password and returns an auth token."""
+    username = request.data.get('username')
+    password = request.data.get('password')
 
+    # Check if username is actually an email
+    if '@' in username:
+        try:
+            user = User.objects.get(email=username)
+            username = user.username
+        except User.DoesNotExist:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Try to find the user
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # First try standard authentication
+    authenticated_user = authenticate(username=username, password=password)
+
+    if authenticated_user:
+        # Standard authentication succeeded
+        token, created = Token.objects.get_or_create(user=authenticated_user)
+        return Response({'token': token.key}, status=status.HTTP_200_OK)
+    else:
+        # Check if this is a social auth user (Google OAuth)
+        try:
+            # Check if user has a social auth account
+            social_auth = UserSocialAuth.objects.get(user=user)
+            if social_auth.provider == 'google-oauth2':
+                # This is a Google OAuth user, create a token
+                token, created = Token.objects.get_or_create(user=user)
+                return Response({'token': token.key}, status=status.HTTP_200_OK)
+        except UserSocialAuth.DoesNotExist:
+            # Not a social auth user
+            pass
+
+        # If we get here, authentication failed
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)

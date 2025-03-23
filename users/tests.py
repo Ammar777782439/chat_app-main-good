@@ -5,6 +5,7 @@ from django.contrib.messages import get_messages  # استيراد الرسائ�
 from rest_framework.test import APIClient  # استيراد APIClient لاختبار الـ API
 from rest_framework import status  # استيراد أكواد حالة الـ HTTP
 from rest_framework.authtoken.models import Token  # استيراد نموذج التوكن
+from social_django.models import UserSocialAuth  # استيراد نموذج المصادقة الاجتماعية
 
 class UserViewsTest(TestCase):
     def setUp(self):
@@ -143,3 +144,57 @@ class UserViewsTest(TestCase):
         # التحقق من وجود توكن للمستخدم الجديد
         token_exists = Token.objects.filter(user=new_user).exists()
         self.assertTrue(token_exists, "لم يتم إنشاء توكن تلقائيًا للمستخدم الجديد")
+
+    def test_obtain_auth_token_api(self):
+        """اختبار نقطة نهاية الحصول على التوكن باستخدام اسم المستخدم وكلمة المرور"""
+        api_client = APIClient()  # إنشاء عميل API
+
+        # اختبار باستخدام اسم المستخدم
+        response = api_client.post('/api/auth/login/', {
+            'username': 'testuser',
+            'password': 'testpassword'
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('token', response.data)
+
+        # اختبار باستخدام البريد الإلكتروني
+        response = api_client.post('/api/auth/login/', {
+            'username': 'test@example.com',
+            'password': 'testpassword'
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('token', response.data)
+
+        # اختبار بيانات غير صحيحة
+        response = api_client.post('/api/auth/login/', {
+            'username': 'testuser',
+            'password': 'wrongpassword'
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('error', response.data)
+
+        # إنشاء مستخدم مصادقة جوجل
+        oauth_user = User.objects.create_user(
+            username='oauth_user',
+            email='oauth@example.com',
+            password='randompassword'
+        )
+
+        # إنشاء سجل مصادقة اجتماعية للمستخدم
+        UserSocialAuth.objects.create(
+            user=oauth_user,
+            provider='google-oauth2',
+            uid='123456789'
+        )
+
+        # اختبار مستخدم جوجل مع كلمة مرور عشوائية
+        response = api_client.post('/api/auth/login/', {
+            'username': 'oauth_user',
+            'password': 'any_password_will_work'
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('token', response.data)
