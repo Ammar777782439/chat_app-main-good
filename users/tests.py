@@ -4,6 +4,7 @@ from django.contrib.auth.models import User  # استيراد نموذج الم�
 from django.contrib.messages import get_messages  # استيراد الرسائل اللي بتظهر للمستخدم
 from rest_framework.test import APIClient  # استيراد APIClient لاختبار الـ API
 from rest_framework import status  # استيراد أكواد حالة الـ HTTP
+from rest_framework.authtoken.models import Token  # استيراد نموذج التوكن
 
 class UserViewsTest(TestCase):
     def setUp(self):
@@ -46,20 +47,20 @@ class UserViewsTest(TestCase):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.get('/login/')
         self.assertEqual(response.status_code, 302)  # لازم يرجعه من صفحة تسجيل الدخول
-        self.assertRedirects(response, f'/chat/{self.user.username}/')  
+        self.assertRedirects(response, f'/chat/{self.user.username}/')
 
     def test_home_view_authenticated(self):
         """اختبار الصفحة الرئيسية إذا كان المستخدم مسجل دخول"""
         self.client.login(username='testuser', password='testpassword')
         response = self.client.get('/')
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, f'/chat/{self.user.username}/')  
+        self.assertRedirects(response, f'/chat/{self.user.username}/')
 
     def test_home_view_unauthenticated(self):
         """إذا المستخدم مش مسجل دخول، لازم يرجعه لصفحة تسجيل الدخول"""
         response = self.client.get('/')
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, '/login/')  
+        self.assertRedirects(response, '/login/')
 
     def test_signup_view_get(self):
         """اختبار هل صفحة التسجيل تفتح عادي"""
@@ -129,3 +130,16 @@ class UserViewsTest(TestCase):
         response = api_client.get('/api/token/')  # طلب الحصول على التوكن
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('token', response.data)  # تأكد إنه أرسل التوكن
+
+    def test_auto_token_creation(self):
+        """اختبار إنشاء التوكن تلقائيًا عند إنشاء مستخدم جديد"""
+        # إنشاء مستخدم جديد
+        new_user = User.objects.create_user(
+            username='autotoken',
+            email='autotoken@example.com',
+            password='password123'
+        )
+
+        # التحقق من وجود توكن للمستخدم الجديد
+        token_exists = Token.objects.filter(user=new_user).exists()
+        self.assertTrue(token_exists, "لم يتم إنشاء توكن تلقائيًا للمستخدم الجديد")
