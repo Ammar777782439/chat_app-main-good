@@ -7,14 +7,14 @@ This module contains the views and viewsets for the chat application, including:
 The views handle user authentication, message filtering, pagination, and WebSocket integration.
 """
 
-from django.shortcuts import render, get_object_or_404
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.http import JsonResponse
+
 from django.db.models import Q
+from django.shortcuts import render
 from django.utils import timezone
-from datetime import datetime
-import pytz
+
 from rest_framework import serializers
 from rest_framework import viewsets, status
 from rest_framework.response import Response

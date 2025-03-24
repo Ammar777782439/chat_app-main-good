@@ -9,3 +9,7 @@ coverage>=5.5
 pytest>=6.2.0
 pytest-django>=4.4.0
 pytest-asyncio>=0.15.0
+
+# Kafka dependencies
+kafka-python>=2.0.2
+confluent-kafka>=1.8.2
