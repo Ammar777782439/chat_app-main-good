@@ -15,7 +15,7 @@ def delivery_report(err, msg):
 def test_producer():
     # إعدادات المنتج
     config = {
-        'bootstrap.servers': 'localhost:9093',  # يمكنك تغييره إلى localhost:9094 لاختبار الوسيط الآخر
+        'bootstrap.servers': '192.168.117.128:9093',  # يمكنك تغييره إلى localhost:9094 لاختبار الوسيط الآخر
         'client.id': 'python-test-producer',
         # إضافة إعدادات إضافية لتجنب مشكلة حل أسماء المضيفين
         'broker.address.family': 'v4',  # استخدام IPv4 فقط
