@@ -24,13 +24,25 @@ def send_message_to_kafka(message):
         bool: True إذا تم إرسال الرسالة بنجاح، False خلاف ذلك.
     """
     try:
-        # إرسال الرسالة بشكل غير متزامن (Asynchronously)
-        future = kafka_producer.send('chat_messages', message)
+        # إنشاء مفتاح للرسالة - نستخدم معرف الرسالة أو مزيج من المرسل والمستقبل
+        # المفتاح يساعد في ضمان أن الرسائل المتعلقة بنفس المحادثة تذهب إلى نفس القسم (partition)
+        if 'message_id' in message:
+            # استخدام معرف الرسالة كمفتاح إذا كان موجودًا
+            key = str(message['message_id']).encode('utf-8')
+        elif 'sender_id' in message and 'receiver_id' in message:
+            # استخدام مزيج من معرفات المرسل والمستقبل كمفتاح
+            key = f"{message['sender_id']}_{message['receiver_id']}".encode('utf-8')
+        else:
+            # استخدام الطابع الزمني كمفتاح إذا لم تتوفر المعرفات
+            key = str(message.get('timestamp', '')).encode('utf-8')
+
+        # إرسال الرسالة بشكل غير متزامن (Asynchronously) مع المفتاح
+        future = kafka_producer.send('chat_messages', key=key, value=message)
 
         # انتظر حتى يتم إرسال الرسالة (يمكنك إزالة هذا إذا كنت لا تريد الانتظار)
         record_metadata = future.get(timeout=10)  # انتظر لمدة 10 ثوانٍ
 
-        logger.info(f"تم إرسال الرسالة إلى topic:{record_metadata.topic}، partition:{record_metadata.partition}, offset:{record_metadata.offset}")
+        logger.info(f"تم إرسال الرسالة إلى topic:{record_metadata.topic}، partition:{record_metadata.partition}, offset:{record_metadata.offset}، key:{key}")
         return True
 
     except KafkaError as e:
