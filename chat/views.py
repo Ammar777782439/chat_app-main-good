@@ -70,7 +70,8 @@ class MessageViewSet(viewsets.ModelViewSet):
 
         This method filters messages to only include those where the current user
         is either the sender or receiver. It also supports filtering by another user
-        when the 'user' query parameter is provided.
+        when the 'user' query parameter is provided. Messages marked as deleted
+        (deleted_at is not None) are excluded from the results.
 
         Returns:
             QuerySet: Filtered queryset of Message objects ordered by timestamp (newest first).
@@ -78,12 +79,13 @@ class MessageViewSet(viewsets.ModelViewSet):
         user = self.request.user
         other_user = self.request.query_params.get('user', None)
 
-        # Base queryset: all messages where the current user is sender or receiver
+       
         queryset = Message.objects.filter(
-            (Q(sender=user) | Q(receiver=user))
+            (Q(sender=user) | Q(receiver=user)),
+            deleted_at__isnull=True  
         ).order_by('-timestamp')
 
-        # Additional filtering by other user if specified
+      
         if other_user:
             queryset = queryset.filter(
                 Q(sender__username=other_user) |
@@ -117,10 +119,12 @@ class MessageViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['delete'])
     def delete_message(self, request, pk=None):
         """
-        Custom action to delete a message.
+        Custom action to soft delete a message.
 
         This endpoint allows a user to delete their own message. It checks that the
         current user is the sender of the message before allowing deletion.
+        Instead of permanently removing the message from the database, this method marks
+        the message as deleted by setting its deleted_at field to the current timestamp.
 
         Args:
             request: The HTTP request object.
@@ -131,12 +135,14 @@ class MessageViewSet(viewsets.ModelViewSet):
         """
         message = self.get_object()
 
-        # Check if the user is the sender of the message
+       
         if message.sender != request.user:
             return Response({"error": "You can only delete your own messages"}, status=status.HTTP_403_FORBIDDEN)
 
-        # Delete the message
-        message.delete()
+      
+        message.deleted_at = timezone.now()
+        message.save()
+
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post'])
@@ -156,20 +162,20 @@ class MessageViewSet(viewsets.ModelViewSet):
         """
         message = self.get_object()
 
-        # Check if the user is the sender of the message
+        
         if message.sender != request.user:
             return Response({"error": "You can only edit your own messages"}, status=status.HTTP_403_FORBIDDEN)
 
-        # Get and validate the new content
+       
         content = request.data.get('content')
         if not content or not content.strip():
             return Response({"error": "Message content cannot be empty"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Update the message
+       
         message.content = content
         message.save()
 
-        # Return the updated message
+       
         serializer = self.get_serializer(message)
         return Response(serializer.data)
 
@@ -192,53 +198,56 @@ def chat_room(request, room_name):
     Returns:
         HttpResponse: Rendered chat.html template with context data.
     """
-    # Get search query parameter (if any)
+    
     search_query = request.GET.get('search', '')
 
-    # Get all users except the current user for the sidebar
+    
     users = User.objects.exclude(id=request.user.id)
 
-    # Get messages between the current user and the specified user
+    
     chats = Message.objects.filter(
         (Q(sender=request.user) & Q(receiver__username=room_name)) |
-        (Q(receiver=request.user) & Q(sender__username=room_name))
+        (Q(receiver=request.user) & Q(sender__username=room_name)),
+        deleted_at__isnull=True  
     )
+    # هانا تم اضافه الملاحظه ان لايتم حذف الرساله منقاعده البيانات
 
-    # Filter messages by search query if provided
+    
     if search_query:
         chats = chats.filter(Q(content__icontains=search_query))
 
-    # Order messages by timestamp (oldest first for chat display)
+   
     chats = chats.order_by('timestamp')
 
-    # Prepare data for the sidebar showing users and their last messages
+    
     user_last_messages = []
 
-    # Use a minimum datetime for users with no messages
+    
     min_datetime = timezone.now().replace(year=1, month=1, day=1)
 
-    # For each user, find the most recent message between them and the current user
+   
     for user in users:
         last_message = Message.objects.filter(
             (Q(sender=request.user) & Q(receiver=user)) |
-            (Q(receiver=request.user) & Q(sender=user))
+            (Q(receiver=request.user) & Q(sender=user)),
+            deleted_at__isnull=True 
         ).order_by('-timestamp').first()
 
-        # Add user and their last message to the list
+       
         user_last_messages.append({
             'user': user,
             'last_message': last_message,
             'timestamp': last_message.timestamp if last_message else min_datetime
         })
 
-    # Sort users by the timestamp of their last message (newest first)
+   
     user_last_messages = sorted(
         user_last_messages,
         key=lambda x: x['timestamp'],
         reverse=True
     )
 
-    # Render the chat template with all necessary context data
+   
     return render(request, 'chat.html', {
         'room_name': room_name,
         'chats': chats,

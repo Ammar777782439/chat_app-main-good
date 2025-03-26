@@ -22,8 +22,8 @@ class MessageSerializer(serializers.ModelSerializer):
             read_only_fields: Fields that should not be modified during deserialization.
         """
         model = Message
-        fields = ['id', 'sender', 'receiver', 'content', 'timestamp']
-        read_only_fields = ['sender', 'timestamp']
+        fields = ['id', 'sender', 'receiver', 'content', 'timestamp', 'deleted_at']
+        read_only_fields = ['sender', 'timestamp', 'deleted_at']
 
     def validate_content(self, value):
         """

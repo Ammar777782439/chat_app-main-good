@@ -65,10 +65,20 @@ class MessageViewSetTest(APITestCase):
         self.assertEqual(Message.objects.count(), 3)  # لازم يصير عدد الرسائل 3
 
     def test_delete_message(self):
-        """اختبار حذف رسالة خاصة بالمستخدم"""
+        """اختبار حذف رسالة خاصة بالمستخدم (soft delete)"""
         response = self.client.delete(f'/api/messages/{self.message1.id}/delete_message/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(Message.objects.count(), 1)  # لازم يتبقى رسالة واحدة فقط
+
+        # التأكد من أن الرسالة لم تُحذف فعلياً من قاعدة البيانات
+        self.assertEqual(Message.objects.count(), 2)  # لازم يتبقى رسالتين
+
+        # التأكد من أن الرسالة تم وضع علامة عليها كمحذوفة
+        self.message1.refresh_from_db()
+        self.assertIsNotNone(self.message1.deleted_at)
+
+        # التأكد من أن الرسالة لا تظهر في نتائج الاستعلام
+        messages = Message.objects.filter(deleted_at__isnull=True)
+        self.assertEqual(messages.count(), 1)  # فقط رسالة واحدة يجب أن تكون مرئية
 
     def test_delete_others_message(self):
         """اختبار محاولة حذف رسالة لشخص ثاني (المفروض يرفض)"""
@@ -327,8 +337,16 @@ class WebSocketTests(TransactionTestCase):
         # Disconnect
         await communicator.disconnect()
 
+    @database_sync_to_async
+    def get_message_by_id(self, message_id):
+        return Message.objects.get(id=message_id)
+
+    @database_sync_to_async
+    def count_visible_messages(self):
+        return Message.objects.filter(deleted_at__isnull=True).count()
+
     async def test_websocket_delete_message(self):
-        """Test deleting a message through WebSocket"""
+        """Test soft deleting a message through WebSocket"""
         user1 = await self.create_user('wsuser7', 'password123')
         user2 = await self.create_user('wsuser8', 'password123')
 
@@ -348,8 +366,8 @@ class WebSocketTests(TransactionTestCase):
         connected, _ = await communicator.connect()
         self.assertTrue(connected)
 
-        # Initial message count
-        initial_count = await self.count_messages()
+        # Initial message count (visible messages)
+        initial_count = await self.count_visible_messages()
 
         # Delete the message
         await communicator.send_json_to({
@@ -362,9 +380,17 @@ class WebSocketTests(TransactionTestCase):
         # Check the response
         self.assertEqual(response['deleted_message_id'], message.id)
 
-        # Check that the message was deleted from the database
-        new_count = await self.count_messages()
+        # Check that the message was soft deleted (still exists but marked as deleted)
+        updated_message = await self.get_message_by_id(message.id)
+        self.assertIsNotNone(updated_message.deleted_at)
+
+        # Check that the message no longer appears in visible messages
+        new_count = await self.count_visible_messages()
         self.assertEqual(new_count, initial_count - 1)
+
+        # Check that the total message count hasn't changed
+        total_count = await self.count_messages()
+        self.assertEqual(total_count, initial_count)  # Total count should remain the same
 
         # Disconnect
         await communicator.disconnect()

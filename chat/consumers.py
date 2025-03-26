@@ -274,13 +274,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def delete_message(self, message_id, sender):
         """
-        delete an existing message in the database.
+        Soft delete an existing message in the database by setting deleted_at timestamp.
+
+        Instead of permanently removing the message from the database, this method marks
+        the message as deleted by setting its deleted_at field to the current timestamp.
+        This allows the message to be excluded from queries while still preserving it in
+        the database for record-keeping purposes.
         """
         try:
             # البحث عن الرسالة والتأكد من ملكية المرسل لها
             message = Message.objects.get(id=message_id, sender=sender)
 
-            message.delete()
+            # تعيين وقت الحذف بدلاً من حذف الرسالة فعلياً
+            from django.utils import timezone
+            message.deleted_at = timezone.now()
+            message.save()
             return True
         except Message.DoesNotExist:
             return False
