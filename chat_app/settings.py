@@ -178,6 +178,12 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Kafka Configuration
+KAFKA_CONFIG = {
+    'bootstrap_servers': '192.168.117.128:9094',
+    'topic': 'chat_messages',
+}
+
 
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '58335703471-l58a73o7u3f8kst6osh39g412q71khei.apps.googleusercontent.com'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'

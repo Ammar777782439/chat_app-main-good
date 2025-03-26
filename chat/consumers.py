@@ -6,10 +6,14 @@ WebSocket connections, message sending/receiving, and database operations.
 """
 
 import json
+import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth.models import User
 from .models import Message
 from asgiref.sync import sync_to_async
+from .kafka_utils import kafka_producer
+
+logger = logging.getLogger(__name__)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -90,6 +94,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # حذف الرسالة
             deleted = await self.delete_message(delete_message_id, sender)
             if deleted:
+                # إعداد بيانات الحذف للإرسال إلى Kafka
+                delete_data = {
+                    'message_id': delete_message_id,
+                    'sender': sender.username,
+                    'receiver': receiver.username,
+                    'room_group_name': self.room_group_name,
+                    'event_type': 'delete_message',
+                    'timestamp': self.get_current_timestamp()
+                }
+
+                # إرسال حدث الحذف إلى Kafka
+                try:
+                    kafka_result = await kafka_producer.send_message_async(
+                        message_data=delete_data,
+                        key=sender.username
+                    )
+                    if kafka_result:
+                        logger.info(f"Delete event for message {delete_message_id} sent to Kafka successfully")
+                    else:
+                        logger.error(f"Failed to send delete event for message {delete_message_id} to Kafka")
+                except Exception as e:
+                    logger.error(f"Error sending delete event to Kafka: {str(e)}")
+
                 # إرسال إشعار الحذف إلى جميع المشتركين في الغرفة
                 await self.channel_layer.group_send(
                     self.room_group_name,
@@ -110,6 +137,30 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # تحديث الرسالة
             updated = await self.update_message(message_id, sender, message)
             if updated:
+                # إعداد بيانات التحديث للإرسال إلى Kafka
+                update_data = {
+                    'message_id': message_id,
+                    'sender': sender.username,
+                    'receiver': receiver.username,
+                    'content': message,
+                    'room_group_name': self.room_group_name,
+                    'event_type': 'update_message',
+                    'timestamp': self.get_current_timestamp()
+                }
+
+                # إرسال حدث التحديث إلى Kafka
+                try:
+                    kafka_result = await kafka_producer.send_message_async(
+                        message_data=update_data,
+                        key=sender.username
+                    )
+                    if kafka_result:
+                        logger.info(f"Update event for message {message_id} sent to Kafka successfully")
+                    else:
+                        logger.error(f"Failed to send update event for message {message_id} to Kafka")
+                except Exception as e:
+                    logger.error(f"Error sending update event to Kafka: {str(e)}")
+
                 # إرسال التحديث إلى جميع المشتركين في الغرفة
                 await self.channel_layer.group_send(
                     self.room_group_name,
@@ -125,6 +176,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
         else:
             # حفظ الرسالة الجديدة في قاعدة البيانات
             saved_message = await self.save_message(sender, receiver, message)
+
+            # إعداد بيانات الرسالة للإرسال إلى Kafka
+            message_data = {
+                'message_id': saved_message.id,
+                'sender': sender.username,
+                'receiver': receiver.username,
+                'content': message,
+                'timestamp': saved_message.timestamp.isoformat(),
+                'room_group_name': self.room_group_name,
+                'event_type': 'new_message'
+            }
+
+            # إرسال الرسالة إلى Kafka بشكل غير متزامن
+            try:
+                # استخدام اسم المرسل كمفتاح للرسالة لضمان ترتيب الرسائل من نفس المرسل
+                kafka_result = await kafka_producer.send_message_async(
+                    message_data=message_data,
+                    key=sender.username
+                )
+                if kafka_result:
+                    logger.info(f"Message {saved_message.id} sent to Kafka successfully")
+                else:
+                    logger.error(f"Failed to send message {saved_message.id} to Kafka")
+            except Exception as e:
+                logger.error(f"Error sending message to Kafka: {str(e)}")
 
             # إخطار جميع المستخدمين بالرسالة الجديدة
             await self.channel_layer.group_send(
@@ -218,3 +294,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return User.objects.get(username=self.room_name)
         except User.DoesNotExist:
             return self.scope['user']
+
+    def get_current_timestamp(self):
+        """
+        Get the current timestamp in ISO format.
+
+        Returns:
+            str: Current timestamp in ISO format
+        """
+        from django.utils import timezone
+        return timezone.now().isoformat()
