@@ -1,3 +1,4 @@
+
 """
 Django settings for chat_app project.
 
@@ -178,6 +179,21 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Kafka settings
+KAFKA_ENABLED = True
+# استخدام عنوان IP بدلاً من localhost
+KAFKA_BOOTSTRAP_SERVERS = '192.168.117.128:9094'
+KAFKA_CLIENT_ID = 'chat-app'
+KAFKA_CONSUMER_GROUP = 'chat-consumer'
+KAFKA_CHAT_TOPIC = 'chat_messages'
+KAFKA_EVENTS_TOPIC = 'chat_events'
+KAFKA_NOTIFICATIONS_TOPIC = 'chat_notifications'
+
+# إعدادات إعادة المحاولة لـ Kafka
+KAFKA_RETRY_TRIES = 2  # عدد محاولات إعادة المحاولة
+KAFKA_RETRY_DELAY = 0.5  # التأخير بين المحاولات (بالثواني)
+KAFKA_RETRY_BACKOFF = 1.5  # معامل التراجع
+
 
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '58335703471-l58a73o7u3f8kst6osh39g412q71khei.apps.googleusercontent.com'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
@@ -202,6 +218,12 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
 )
+
+# Kafka settings
+KAFKA_ENABLED = True
+KAFKA_BOOTSTRAP_SERVERS = '192.168.117.128:9094:9094'
+KAFKA_CLIENT_ID = 'chat-app'
+KAFKA_CHAT_TOPIC = 'chat_messages'
 
 
 

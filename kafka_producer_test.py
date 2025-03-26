@@ -1,7 +1,6 @@
-from confluent_kafka import Producer
+from kafka import KafkaProducer
 import json
 import time
-import sys
 
 def delivery_report(err, msg):
     """
@@ -15,17 +14,18 @@ def delivery_report(err, msg):
 def test_producer():
     # إعدادات المنتج
     config = {
-        'bootstrap.servers': '192.168.117.128:9093',  # يمكنك تغييره إلى localhost:9094 لاختبار الوسيط الآخر
-        'client.id': 'python-test-producer',
-        # إضافة إعدادات إضافية لتجنب مشكلة حل أسماء المضيفين
-        'broker.address.family': 'v4',  # استخدام IPv4 فقط
-        'debug': 'broker,topic,metadata'  # إضافة معلومات تشخيصية
+        'bootstrap_servers': '192.168.117.128:9094',  # يمكنك تغييره إلى localhost:9094 لاختبار الوسيط الآخر
+        'client_id': 'python-test-producer',
+        # لا حاجة لإعداد broker.address.family في kafka-python، فإنه يدير هذه الإعدادات تلقائيًا
     }
 
-    print(f"\nاختبار الاتصال بـ Kafka على {config['bootstrap.servers']}...")
+    print(f"\nاختبار الاتصال بـ Kafka على {config['bootstrap_servers']}...")
 
     # إنشاء منتج Kafka
-    producer = Producer(config)
+    producer = KafkaProducer(
+        **config,
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')  # تحويل القيمة إلى JSON
+    )
 
     # اسم الموضوع
     topic = 'test_topic'
@@ -39,22 +39,15 @@ def test_producer():
             'timestamp': time.time()
         }
 
-        # تحويل الرسالة إلى JSON
-        message_json = json.dumps(message)
-
         # طباعة الرسالة التي سيتم إرسالها
-        print(f"إرسال: {message_json}")
+        print(f"إرسال: {message}")
 
         # إرسال الرسالة إلى Kafka
-        producer.produce(
+        producer.send(
             topic=topic,
-            key=str(i),
-            value=message_json,
-            callback=delivery_report
+            key=str(i).encode('utf-8'),  # تحويل المفتاح إلى بايتات
+            value=message
         )
-
-        # تنفيذ الإرسال
-        producer.poll(0)
 
         # انتظار قليلاً بين الرسائل
         time.sleep(1)

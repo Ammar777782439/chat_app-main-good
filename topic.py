@@ -2,7 +2,7 @@ from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import KafkaError
 
 # إعدادات الاتصال بـ Kafka
-bootstrap_servers = '192.168.117.128:9093'
+bootstrap_servers = '192.168.117.128:9094'
 
 # إنشاء عميل الإداري (AdminClient) لإدارة المواضيع
 admin_client = KafkaAdminClient(bootstrap_servers=bootstrap_servers)
